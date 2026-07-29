@@ -1,0 +1,32 @@
+{
+  "name": "blogging-platform-api",
+  "version": "1.0.0",
+  "description": "blog-api/ │ ├── src/ │ ├── config/ │ │ └── supabaseClient.js # Conexión al cliente de Supabase │ │ │ ├── models/ │ │ └── post.model.js # Lógica de acceso a datos (queries a la tabla posts) │ │ │ ├── controllers/ │ │ └── post.controller.js # Lógica de negocio: recibe req, llama al model, arma la respuesta │ │ │ ├── routes/ │ │ └── post.routes.js # Define los endpoints y los conecta con el controller │ │ │ ├── middlewares/ │ │ ├── validatePost.js # Validación del body (create/update) │ │ └── errorHandler.js # Middleware centralizado de manejo de errores │ │ │ └── app.js # Configura Express, middlewares globales, monta rutas │ ├── .env # SUPABASE_URL, SUPABASE_KEY, PORT ├── .gitignore ├── package.json └── server.js # Punto de entrada: importa app.js y levanta el servidor",
+  "main": "index.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LweZ01/Blogging-Platform-API.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/LweZ01/Blogging-Platform-API/issues"
+  },
+  "homepage": "https://github.com/LweZ01/Blogging-Platform-API#readme",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.111.0",
+    "cors": "2.8.6",
+    "dotenv": "17.4.2",
+    "express": "5.2.1",
+    "morgan": "1.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

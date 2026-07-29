@@ -114,7 +114,7 @@ CREATE INDEX idx_post_tags_tag_id ON post_tags(tag_id);
 
 4. Modelo/capa de datos
 
-Crear funciones para interactuar con la tabla posts (crear, leer, actualizar, eliminar, buscar)
+## Crear funciones para interactuar con la tabla posts (crear, leer, actualizar, eliminar, buscar)
 
 5. Validación
 

@@ -1,6 +1,18 @@
 import supabase from "../config/supabaseClient.js";
 
 class Posts {
+  static formatPost(post) {
+    return {
+      id: post.id,
+      title: post.title,
+      content: post.content,
+      category: post.category,
+      tags: post.tags ? post.tags.map((t) => t.tags).filter(Boolean) : [],
+      createdAt: post.created_at,
+      updatedAt: post.updated_at,
+    };
+  }
+
   static async create(postData) {
     const { data: newPost, error } = await supabase
       .rpc("create_post_with_tags", {
@@ -12,7 +24,9 @@ class Posts {
       .single();
 
     Validator.checkDbError(error);
-    return newPost;
+
+    const postWithTags = await this.findById(newPost.id);
+    return postWithTags;
   }
 
   static async findAll() {
@@ -28,10 +42,7 @@ class Posts {
 
     Validator.checkDbError(error);
 
-    return (posts || []).map((post) => ({
-      ...post,
-      tags: post.tags ? post.tags.map((t) => t.tags).filter(Boolean) : [],
-    }));
+    return (posts || []).map((post) => this.formatPost(post));
   }
 
   static async findById(id) {
@@ -55,10 +66,7 @@ class Posts {
 
     if (!post) return null;
 
-    return {
-      ...post,
-      tags: post.tags ? post.tags.map((t) => t.tags).filter(Boolean) : [],
-    };
+    return this.formatPost(post);
   }
 
   static async update(id, postData) {
@@ -67,18 +75,20 @@ class Posts {
       return null;
     }
 
-    const { data: updatedPost, error } = await supabase
+    const { error } = await supabase
       .rpc("update_post_with_tags", {
         p_post_id: id,
         p_title: postData.title,
         p_content: postData.content,
         p_category: postData.category,
-        p_tags: postData.tags || [],
+        p_tags: postData.tags === undefined ? null : postData.tags,
         p_updated_at: new Date().toISOString(),
       })
       .single();
 
     Validator.checkDbError(error);
+
+    const updatedPost = await this.findById(id);
     return updatedPost;
   }
 
@@ -122,10 +132,7 @@ class Posts {
 
     Validator.checkDbError(error);
 
-    return (posts || []).map((post) => ({
-      ...post,
-      tags: post.tags ? post.tags.map((t) => t.tags).filter(Boolean) : [],
-    }));
+    return (posts || []).map((post) => this.formatPost(post));
   }
 }
 
@@ -138,10 +145,12 @@ class Validator {
 
   static validatePostData(postData) {
     if (!postData) {
-      throw new Error("[Validation Error] Los datos del post son requeridos.");
+      throw new Error(
+        "[Validation Error] The information in this post is required.",
+      );
     }
     if (!postData.title || postData.title.trim() === "") {
-      throw new Error("[Validation Error] El título es obligatorio.");
+      throw new Error("[Validation Error] The title is required.");
     }
   }
 }

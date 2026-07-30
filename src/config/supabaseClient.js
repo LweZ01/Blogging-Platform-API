@@ -6,7 +6,7 @@ const supabaseKey = process.env.SUPABASE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error(
-    "SUPABASE_URL y SUPABASE_KEY son requeridas en el archivo .env",
+    "SUPABASE_URL and SUPABASE_KEY are required in the .env file",
   );
 }
 

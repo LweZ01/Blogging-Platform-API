@@ -1,150 +1,269 @@
-# Blogging-Platform-API
+# Blogging Platform API
 
-## MVC Arquitecture
+A RESTful API for a personal blogging platform, with full CRUD operations on posts, categories, and tags, plus search by term. Built as a practice project to reinforce MVC architecture concepts, database normalization, and REST API design best practices.
 
+## Stack
+
+- **Node.js** + **Express** — server and routing
+- **Supabase** (**PostgreSQL**) — database
+- **MVC architecture** — separation into config / models / controllers / routes / middlewares
+
+## Project structure
+
+```
 blog-api/
 │
 ├── src/
-│ ├── config/
-│ │ └── supabaseClient.js # Conexión al cliente de Supabase
-│ │
-│ ├── models/
-│ │ └── post.model.js # Lógica de acceso a datos (queries a la tabla posts)
-│ │
-│ ├── controllers/
-│ │ └── post.controller.js # Lógica de negocio: recibe req, llama al model, arma la respuesta
-│ │
-│ ├── routes/
-│ │ └── post.routes.js # Define los endpoints y los conecta con el controller
-│ │
-│ ├── middlewares/
-│ │ ├── validatePost.js # Validación del body (create/update)
-│ │ └── errorHandler.js # Middleware centralizado de manejo de errores
-│ │
-│ └── app.js # Configura Express, middlewares globales, monta rutas
+│   ├── config/
+│   │   └── supabaseClient.js       # Supabase client connection
+│   │
+│   ├── models/
+│   │   └── post.model.js           # Data access (queries and RPC calls to Supabase)
+│   │
+│   ├── controllers/
+│   │   └── post.controller.js      # Business logic and HTTP responses
+│   │
+│   ├── routes/
+│   │   └── post.routes.js          # Endpoint definitions
+│   │
+│   ├── middlewares/
+│   │   ├── validatePost.js         # Request body validation (create/update)
+│   │   └── errorHandler.js         # Centralized error handling
+│   │
+│   └── app.js                      # Express configuration
 │
-├── .env # SUPABASE_URL, SUPABASE_KEY, PORT
+├── .env
+├── .env.example
 ├── .gitignore
 ├── package.json
-└── server.js # Punto de entrada: importa app.js y levanta el servidor
+└── server.js                       # Entry point
+```
 
-## Flujo de una petición
+## Request flow
 
-Cliente (Postman/browser)
-│
-▼
-routes/post.routes.js → decide qué controller ejecutar según método + URL
-│
-▼
-middlewares/validatePost.js → valida el body antes de llegar al controller (solo en POST/PUT)
-│
-▼
-controllers/post.controller.js → orquesta: llama al model, maneja status codes y respuestas
-│
-▼
-models/post.model.js → habla directamente con Supabase (queries)
-│
-▼
-config/supabaseClient.js → cliente configurado que el model usa
+```
+Client (Postman/Thunder Client/browser)
+      │
+      ▼
+routes/post.routes.js          → maps HTTP method + URL to the controller
+      │
+      ▼
+middlewares/validatePost.js    → validates the request body (POST/PUT only)
+      │
+      ▼
+controllers/post.controller.js → orchestrates the request and builds the HTTP response
+      │
+      ▼
+models/post.model.js           → runs queries/RPC calls against Supabase
+      │
+      ▼
+config/supabaseClient.js       → configured client used by the model
+```
 
-## Data base Scheme
+Errors thrown at any point in this chain are caught and forwarded to `middlewares/errorHandler.js`, mounted at the end of `app.js`.
 
--- Extensión para búsquedas wildcard eficientes
+## Installation
+
+1. Clone the repository:
+
+   ```bash
+   git clone <repository-url>
+   cd blog-api
+   ```
+
+2. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+3. Create a project on [Supabase](https://supabase.com) and run the SQL from the [Database schema](#database-schema) section in the SQL Editor.
+
+4. Copy `.env.example` to `.env` and fill in your Supabase credentials:
+
+   ```
+   PORT=3000
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_KEY=your-anon-key
+   ```
+
+5. Start the server:
+
+   ```bash
+   npm run dev
+   ```
+
+   The API will be available at `http://localhost:3000`.
+
+## Database schema
+
+Normalized design in 3NF: posts, categories, and tags live in separate tables, with `post_tags` as a pivot table for the many-to-many relationship between posts and tags.
+
+```sql
+-- Extension for efficient wildcard search
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
--- Tabla principal de posts
+-- Main posts table
 CREATE TABLE posts (
-id BIGSERIAL PRIMARY KEY,
-title TEXT NOT NULL,
-content TEXT NOT NULL,
-category TEXT NOT NULL,
-created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    id BIGSERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    category TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Tabla de tags
+-- Tags table
 CREATE TABLE tags (
-id BIGSERIAL PRIMARY KEY,
-name TEXT NOT NULL UNIQUE
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
 );
 
--- Tabla pivote post_tags
+-- post_tags pivot table (many-to-many relationship)
 CREATE TABLE post_tags (
-post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-tag_id BIGINT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-PRIMARY KEY (post_id, tag_id)
+    post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    tag_id BIGINT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    PRIMARY KEY (post_id, tag_id)
 );
 
--- Índices para búsqueda wildcard (ILIKE '%term%')
+-- Indexes for wildcard search (ILIKE '%term%')
 CREATE INDEX idx_posts_title_trgm ON posts USING GIN (title gin_trgm_ops);
 CREATE INDEX idx_posts_content_trgm ON posts USING GIN (content gin_trgm_ops);
 CREATE INDEX idx_posts_category_trgm ON posts USING GIN (category gin_trgm_ops);
 
--- Índices en las FKs de la tabla pivote
+-- Indexes on the pivot table's foreign keys
 CREATE INDEX idx_post_tags_post_id ON post_tags(post_id);
 CREATE INDEX idx_post_tags_tag_id ON post_tags(tag_id);
+```
 
-## Plan de pasos
+Additionally, creating and updating posts (including tag synchronization) is handled through PostgreSQL functions (`create_post_with_tags`, `update_post_with_tags`) to guarantee atomicity — if any step fails, the entire operation is rolled back.
 
-## mkdir -p src/config src/models src/controllers src/routes src/middlewares
+> **Note on Row Level Security (RLS):** if your Supabase project creates tables with RLS enabled by default, you'll need to disable it for these tables or define access policies, since this project does not implement authentication:
+>
+> ```sql
+> ALTER TABLE posts DISABLE ROW LEVEL SECURITY;
+> ALTER TABLE tags DISABLE ROW LEVEL SECURITY;
+> ALTER TABLE post_tags DISABLE ROW LEVEL SECURITY;
+> ```
 
-## touch src/app.js server.js .env .env.example .gitignore
+## Endpoints
 
-1. Configuración inicial del proyecto
+All responses use `Content-Type: application/json`. Date fields (`createdAt`, `updatedAt`) are returned in ISO 8601 format.
 
-## Inicializar proyecto Node.js (npm init)
+### Create a post
 
-## Instalar dependencias: express, @supabase/supabase-js (o pg si prefieres SQL directo), dotenv, cors
+```
+POST /posts
+```
 
-## Instalar dependencias de desarrollo: nodemon
+**Body:**
 
-## Crear estructura de carpetas (MVC-ish): /routes, /controllers, /config, /middleware
+```json
+{
+  "title": "My First Blog Post",
+  "content": "This is the content of my first blog post.",
+  "category": "Technology",
+  "tags": ["Node.js", "Express"]
+}
+```
 
-2. Configurar Supabase
+`tags` is optional. `title`, `content`, and `category` are required.
 
-## Crear proyecto en Supabase (si no lo tienes ya)
+**Response `201 Created`:**
 
-## Crear la tabla posts con sus columnas (id, title, content, category, tags, created_at, updated_at)
+```json
+{
+  "id": 1,
+  "title": "My First Blog Post",
+  "content": "This is the content of my first blog post.",
+  "category": "Technology",
+  "tags": [
+    { "id": 1, "name": "Node.js" },
+    { "id": 2, "name": "Express" }
+  ],
+  "createdAt": "2026-07-30T12:00:00Z",
+  "updatedAt": "2026-07-30T12:00:00Z"
+}
+```
 
-## Obtener las credenciales (URL y API key) y guardarlas en .env
+**Response `400 Bad Request`** if a required field is missing or has an invalid type:
 
-3. Conexión a la base de datos
+```json
+{
+  "errors": ["Title is required and must be valid text"]
+}
+```
 
-## Crear el cliente de Supabase en /config/supabaseClient.js
+### Get all posts
 
-4. Modelo/capa de datos
+```
+GET /posts
+```
 
-## Crear funciones para interactuar con la tabla posts (crear, leer, actualizar, eliminar, buscar)
+**Response `200 OK`:** array of posts, in the same shape as the creation example.
 
-5. Validación
+### Search posts by term
 
-Definir reglas de validación para el body del POST/PUT (title, content, category, tags requeridos, tipos correctos)
-Elegir herramienta: validación manual o librería como joi / express-validator
+```
+GET /posts?term=tech
+```
 
-6. Controladores
+Performs a case-insensitive partial match search across `title`, `content`, and `category`.
 
-createPost, getPost, getAllPosts, updatePost, deletePost
-Manejo de errores y códigos de estado según el spec (201, 200, 204, 400, 404)
+**Response `200 OK`:** array of matching posts (empty `[]` if there are no results).
 
-7. Rutas
+### Get a post by ID
 
-Definir /posts y /posts/:id con los métodos correspondientes (GET, POST, PUT, DELETE)
-Soporte para query param ?term= en el GET de todos los posts
+```
+GET /posts/:id
+```
 
-8. Middleware de manejo de errores
+**Response `200 OK`:** the requested post.
 
-Middleware centralizado para capturar y formatear errores
+**Response `404 Not Found`** if it doesn't exist:
 
-9. Archivo principal (app.js / server.js)
+```json
+{
+  "message": "Post id must be real"
+}
+```
 
-Configurar Express, middlewares (json parser, cors), montar rutas, levantar servidor
+### Update a post
 
-10. Pruebas
+```
+PUT /posts/:id
+```
 
-Probar cada endpoint con Postman/Thunder Client/curl
-Verificar códigos de estado y respuestas según el spec
-Probar la búsqueda con term
+**Body:** supports partial updates — only the fields sent are validated and updated. The body cannot be empty.
 
-11. (Opcional) Documentación
+```json
+{
+  "title": "My Updated Blog Post"
+}
+```
 
-README con instrucciones de instalación y ejemplos de uso de cada endpoint
+- If `tags` is not included in the body, the post's existing tags are **left unchanged**.
+- If `tags: []` is sent, all tags associated with the post are removed.
+
+**Response `200 OK`:** the updated post.
+
+**Response `400 Bad Request`** if the body is empty or any submitted field is invalid.
+
+**Response `404 Not Found`** if the post doesn't exist.
+
+### Delete a post
+
+```
+DELETE /posts/:id
+```
+
+**Response `204 No Content`** if deleted successfully.
+
+**Response `404 Not Found`** if the post doesn't exist.
+
+## Design notes
+
+- **Auto-incrementing IDs (`BIGSERIAL`)** instead of UUIDs, to stay faithful to the original project spec.
+- **Atomicity:** creating and updating posts along with their tags runs inside PostgreSQL functions (RPC), avoiding inconsistent states if an intermediate step fails.
+- **Security:** hardened HTTP headers via `helmet`, no `X-Powered-By` exposure, and centralized error handling that avoids leaking internal details (stack traces, database driver messages) in client-facing responses.
+- **Authentication and authorization:** out of scope for this project.

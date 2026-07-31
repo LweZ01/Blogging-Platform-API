@@ -1,5 +1,3 @@
-https://roadmap.sh/projects/blogging-platform-api
-
 # Blogging Platform API
 
 A RESTful API for a personal blogging platform, with full CRUD operations on posts, categories, and tags, plus search by term. Built as a practice project to reinforce MVC architecture concepts, database normalization, and REST API design best practices.
